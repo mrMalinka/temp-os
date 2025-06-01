@@ -2,7 +2,7 @@
 ```sh
 $ bash start.sh <name>
 ```
-where `name` is defined in `config.json
+where `name` is defined in `config.json`
 
 # Example `config.json`
 ```json
