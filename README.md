@@ -1,4 +1,10 @@
-# Example `config.json`:
+# Usage
+```sh
+$ bash start.sh <name>
+```
+where `name` is defined in `config.json
+
+# Example `config.json`
 ```json
 {
     "alpine": {
