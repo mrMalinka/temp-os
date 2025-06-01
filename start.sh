@@ -1,89 +1,89 @@
 set -euo pipefail
 
 if [ $# -ne 1 ]; then
-    echo "} usage: $0 <iso_name>"
+    echo "} usage: $0 <ISO_NAME>"
     exit 1
 fi
 
 # read config
-iso_name="$1"
-config_file="config.json"
+ISO_NAME="$1"
+CONFIG_FILE="config.json"
 
-if [ ! -f "$config_file" ]; then
-    echo "} config file '$config_file' not found"
+if [ ! -f "$CONFIG_FILE" ]; then
+    echo "} config file '$CONFIG_FILE' not found"
     exit 1
 fi
 
-config=$(jq -r ".${iso_name}" "$config_file")
-if [ -z "$config" ]; then
-    echo "} '$iso_name' not defined in $config_file"
+CONFIG=$(jq -r ".${ISO_NAME}" "$CONFIG_FILE")
+if [ -z "$CONFIG" ]; then
+    echo "} '$ISO_NAME' not defined in $CONFIG_FILE"
     exit 1
 fi
 
 # parse
-iso_path=$(echo "$config" | jq -r '.iso_path')
-iso_url=$(echo "$config" | jq -r '.iso_url')
-guide=$(echo "$config" | jq -r '.guide')
-disk_size=$(echo "$config" | jq -r '.disk_size')
-ram_size=$(echo "$config" | jq -r '.ram_size')
+ISO_PATH=$(echo "$CONFIG" | jq -r '.iso_path')
+ISO_URL=$(echo "$CONFIG" | jq -r '.iso_url')
+GUIDE=$(echo "$CONFIG" | jq -r '.guide')
+DISK_SIZE=$(echo "$CONFIG" | jq -r '.disk_size')
+RAM_SIZE=$(echo "$CONFIG" | jq -r '.ram_size')
 
 # creating ramdisk
-ramdisk_dir="$(pwd)/tempos-drives"
-mkdir -p "$ramdisk_dir"
+RAMDISK_DIR="$(pwd)/tempos-drives"
+mkdir -p "$RAMDISK_DIR"
 
-if ! mountpoint -q "$ramdisk_dir"; then
-    echo "} mounting ramdisk to $ramdisk_dir"
-    sudo mount -t tmpfs -o size=$disk_size tmpfs "$ramdisk_dir"
+if ! mountpoint -q "$RAMDISK_DIR"; then
+    echo "} mounting ramdisk to $RAMDISK_DIR"
+    sudo mount -t tmpfs -o size=$DISK_SIZE tmpfs "$RAMDISK_DIR"
 fi
 
 # download and copy iso to ramdisk
-iso_ramdisk="$ramdisk_dir/${iso_name}.iso"
+ISO_RAMDISK="$RAMDISK_DIR/${ISO_NAME}.iso"
 
 # make the directories for the iso path
-mkdir -p "$(dirname $iso_path)"
+mkdir -p "$(dirname "$ISO_PATH")"
 
-if [ ! -f "iso_path" ]; then
-    echo "} downloading iso from $iso_url"
-    wget "$iso_url" -O "$iso_path"
+if [ ! -f "$ISO_PATH" ]; then
+    echo "} downloading iso from $ISO_URL"
+    wget "$ISO_URL" -O "$ISO_PATH"
 fi
 
-cp "$iso_path" "$iso_ramdisk"
+cp "$ISO_PATH" "$ISO_RAMDISK"
 
 # make the virtual drive drive
-root_img="$ramdisk_dir/${iso_name}-root.qcow2"
-if [ ! -f "$root_img" ]; then
-    echo "} creating root image '$root_img'"
-    qemu-img create -f qcow2 "$root_img" "$disk_size"
+ROOT_IMG="$RAMDISK_DIR/${ISO_NAME}-root.qcow2"
+if [ ! -f "$ROOT_IMG" ]; then
+    echo "} creating root image '$ROOT_IMG'"
+    qemu-img create -f qcow2 "$ROOT_IMG" "$DISK_SIZE"
 fi
 
 # check if guide exists
-if [ -n "$guide" ]; then
-    if [ -f "$guide" ]; then
-        echo "} guide for $iso_name:"
-        cat "$guide"
+if [ -n "$GUIDE" ]; then
+    if [ -f "$GUIDE" ]; then
+        echo "} guide for $ISO_NAME:"
+        cat "$GUIDE"
         echo
     else
-        echo "} guide for $iso_name not found: $guide"
+        echo "} guide for $ISO_NAME not found: $GUIDE"
     fi
 else
-    echo "} no guide for $iso_name"
+    echo "} no guide for $ISO_NAME"
 fi
 
 echo "} starting qemu..."
 qemu-system-x86_64 \
   -enable-kvm \
-  -m "$ram_size" \
+  -m "$RAM_SIZE" \
   -smp "$(nproc)" \
   -cpu host \
-  -drive if=virtio,file="$root_img",format=qcow2 \
+  -drive if=virtio,file="$ROOT_IMG",format=qcow2 \
   -boot order=c,once=d \
-  -cdrom "$iso_ramdisk" \
+  -cdrom "$ISO_RAMDISK" \
   -vga virtio \
   -display gtk \
   -net nic,model=virtio \
   -net user &
 
-qemu_pid=$!
+QEMU_PID=$!
 
 echo "} pasting unmount command to clipboard"
-echo "sudo umount \"$ramdisk_dir\" && rmdir \"$ramdisk_dir\"" | wl-copy
+echo "sudo umount \"$RAMDISK_DIR\" && rmdir \"$RAMDISK_DIR\"" | wl-copy
